@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Analítico de Exoneraciones - Gemini</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --bg-color: #f0f2f5;
+        }
+        body { background-color: var(--bg-color); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; margin-bottom: 20px; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-3px); }
+        .dashboard-header { background: white; padding: 20px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .chart-div { height: 350px; width: 100%; }
+        .kpi-card h6 { font-size: 0.9rem; color: #6c757d; }
+        .kpi-card h3 { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid py-4 px-md-5">
+    
+    <div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Dashboard Analítico de Exoneraciones</h1>
+            <p class="text-muted mb-0">Carga un Excel con las columnas requeridas para analizar.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <input type="file" id="inputExcel" class="form-control" accept=".xlsx, .xls">
+            <button class="btn btn-outline-secondary" onclick="location.reload()">Reset</button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-2" id="kpiContainer" style="display: none;">
+        <div class="col-md-3">
+            <div class="card p-3 kpi-card border-start border-primary border-4 text-center">
+                <h6>Total Valor Exonerado</h6>
+                <h3 id="kpiTotalExonerado" class="text-primary">$0.00</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 kpi-card border-start border-success border-4 text-center">
+                <h6>Total Impuesto Evitado ($)</h6>
+                <h3 id="kpiTotalEvitado" class="text-success">$0.00</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 kpi-card border-start border-warning border-4 text-center">
+                <h6>Días Promedio Vencimiento</h6>
+                <h3 id="kpiDiasPromedio" class="text-warning">0</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 kpi-card border-start border-danger border-4 text-center">
+                <h6>Registros Totales</h6>
+                <h3 id="kpiRegistros" class="text-danger">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4" id="dashboardContent" style="display: none;">
+        
+        <div class="col-lg-6">
+            <div class="card p-3">
+                <h5 class="card-title text-center">1. Gráfico de Pastel (Pie)</h5>
+                <p class="text-muted text-center small">Distribución por 'Estatus'</p>
+                <div id="chart_pie" class="chart-div"></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card p-3">
+                <h5 class="card-title text-center">2. Gráfico de Columnas (Bar/Column)</h5>
+                <p class="text-muted text-center small">Impuesto Evitado ($) por 'Site'</p>
+                <div id="chart_column" class="chart-div"></div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card p-3">
+                <h5 class="card-title text-center">3. Gráfico de Línea (Line)</h5>
+                <p class="text-muted text-center small">Tendencia de Valor Exonerado por 'Fecha de Emisión'</p>
+                <div id="chart_line" class="chart-div"></div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card p-3">
+                <h5 class="card-title text-center">4. Gráfico de Barras (Bar - Horizontal)</h5>
+                <p class="text-muted text-center small">Top 5 'Proveedores' por Valor Exonerado</p>
+                <div id="chart_bar" class="chart-div"></div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card p-3">
+                <h5 class="card-title text-center">5. Gráfico de Área (Area)</h5>
+                <p class="text-muted text-center small">Comparación Acumulada: Valor vs Impuesto por Tiempo</p>
+                <div id="chart_area" class="chart-div"></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card p-3">
+                <h5 class="card-title text-center">6. Gráfico de Tabla (Table - Detalle)</h5>
+                <p class="text-muted text-center small">Detalle de Registros Principales</p>
+                <div id="chart_table" class="chart-div"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="welcomeMessage" class="text-center py-5">
+        <h2 class="text-muted">Esperando datos...</h2>
+        <p>Sube un archivo Excel para activar el dashboard.</p>
+    </div>
+
+</div>
+
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+    // Configuración Inicial de Google Charts
+    google.charts.load('current', {'packages':['corechart', 'bar', 'line', 'table'], 'language': 'es'});
+
+    document.getElementById('inputExcel').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+        
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" }); // defval gestiona celdas vacías
+            
+            // Validar si hay datos
+            if (jsonData.length === 0) {
+                alert("El archivo Excel está vacío.");
+                return;
+            }
+
+            // Validar que las columnas clave existan (ejemplo)
+            const requiredColumns = ['Site', 'Estatus', 'Valor Exonerado', 'Impuesto Evitado $'];
+            const fileColumns = Object.keys(jsonData[0]);
+            const missing = requiredColumns.filter(col => !fileColumns.includes(col));
+            
+            if (missing.length > 0) {
+                alert(`Error: Al archivo le faltan las siguientes columnas requeridas: ${missing.join(', ')}`);
+                return;
+            }
+
+            // Activar visualización y dibujar
+            document.getElementById('welcomeMessage').style.display = 'none';
+            document.getElementById('kpiContainer').style.display = 'flex';
+            document.getElementById('dashboardContent').style.display = 'flex';
+            
+            // Llamar a la función de Google Charts para que cargue los datos
+            google.charts.setOnLoadCallback(() => procesarYDraw(jsonData));
+        };
+    });
+
+    function procesarYDraw(datos) {
+        // --- 1. PROCESAMIENTO DE DATOS ---
+        let tExonerado = 0;
+        let tEvitado = 0;
+        let tDiasVencer = 0;
+        let totalCount = datos.length;
+
+        // Estructuras para agregaciones
+        let agestatus = {};
+        let agSite = {};
+        let agProveedor = {};
+        let agTiempo = {}; // Agrupado por Fecha de Emisión
+
+        datos.forEach(row => {
+            // Conversión segura de números
+            let valEx = parseFloat(row['Valor Exonerado']) || 0;
+            let valEv = parseFloat(row['Impuesto Evitado $']) || 0;
+            let diasV = parseFloat(row['Dias por vencer']) || 0;
+            let estatus = row['Estatus'] || 'N/A';
+            let site = row['Site'] || 'N/A';
+            let prov = row['Proveedor'] || 'N/A';
+            
+            // Manejo de fecha (asumiendo formato Excel serial o texto YYYY-MM-DD/DD-MM-YYYY)
+            let fechaRaw = row['Fecha de Emision'];
+            let fechaStr = 'Sin Fecha';
+            if(fechaRaw){
+                if(typeof fechaRaw === 'number'){ // Fecha serial de Excel
+                    fechaStr = new Date((fechaRaw - (25567 + 1)) * 86400 * 1000).toISOString().split('T')[0];
+                } else { // Texto
+                    fechaStr = String(fechaRaw).split(' ')[0]; // Tomar solo YYYY-MM-DD
+                }
+            }
+
+            tExonerado += valEx;
+            tEvitado += valEv;
+            tDiasVencer += diasV;
+
+            // Agregaciones
+            agestatus[estatus] = (agestatus[estatus] || 0) + 1; // Contar
+            agSite[site] = (agSite[site] || 0) + valEv; // Sumar Impuesto Evitado
+            agProveedor[prov] = (agProveedor[prov] || 0) + valEx; // Sumar Valor Exonerado
+
+            if(fechaStr !== 'Sin Fecha'){
+                if(!agTiempo[fechaStr]){
+                    agTiempo[fechaStr] = { ex: 0, ev: 0 };
+                }
+                agTiempo[fechaStr].ex += valEx;
+                agTiempo[fechaStr].ev += valEv;
+            }
+        });
+
+        // --- 2. ACTUALIZAR KPIs ---
+        document.getElementById('kpiTotalExonerado').innerText = '$' + tExonerado.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('kpiTotalEvitado').innerText = '$' + tEvitado.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('kpiDiasPromedio').innerText = (tDiasVencer / totalCount).toFixed(1);
+        document.getElementById('kpiRegistros').innerText = totalCount.toLocaleString();
+
+
+        // --- 3. DIBUJAR GRÁFICOS (Google Charts) ---
+
+        // Configuración de colores corporativos
+        const colors = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0', '#6610f2'];
+
+        // G1: Gráfico de Pastel (Pie Chart) -> Estatus
+        let dataPie = new google.visualization.DataTable();
+        dataPie.addColumn('string', 'Estatus');
+        dataPie.addColumn('number', 'Cantidad');
+        Object.keys(agestatus).forEach(k => dataPie.addRow([k, agestatus[k]]));
+
+        new google.visualization.PieChart(document.getElementById('chart_pie')).draw(dataPie, {
+            is3D: true, colors: colors, chartArea: {width:'90%',height:'80%'}
+        });
+
+        // G2: Gráfico de Columnas (Column Chart) -> Impuesto por Site
+        let dataColumn = new google.visualization.DataTable();
+        dataColumn.addColumn('string', 'Site');
+        dataColumn.addColumn('number', 'Impuesto Evitado ($)');
+        Object.keys(agSite).forEach(k => dataColumn.addRow([k, agSite[k]]));
+
+        new google.visualization.ColumnChart(document.getElementById('chart_column')).draw(dataColumn, {
+            colors: ['#198754'], // Verde para impuesto evitado
+            legend: {position: 'none'},
+            chartArea: {width:'80%',height:'70%'},
+            vAxis: {format: 'currency'}
+        });
+
+        // G3: Gráfico de Línea (Line Chart) -> Valor Exonerado Tiempo
+        let dataLine = new google.visualization.DataTable();
+        dataLine.addColumn('date', 'Fecha');
+        dataLine.addColumn('number', 'Valor Exonerado');
+        
+        let sortedDates = Object.keys(agTiempo).sort();
+        sortedDates.forEach(d => {
+            // Convertir YYYY-MM-DD a objeto Date de JS
+            let dateObj = new Date(d);
+            if(!isNaN(dateObj)) dataLine.addRow([dateObj, agTiempo[d].ex]);
+        });
+
+        new google.visualization.LineChart(document.getElementById('chart_line')).draw(dataLine, {
+            colors: [colors[0]],
+            chartArea: {width:'85%',height:'70%'},
+            hAxis: {format: 'MMM yyyy'},
+            vAxis: {format: 'currency', title: 'Valor ($)'}
+        });
+
+        // G4: Gráfico de Barras Horizontal (Bar Chart) -> Top Proveedores
+        let dataBar = new google.visualization.DataTable();
+        dataBar.addColumn('string', 'Proveedor');
+        dataBar.addColumn('number', 'Valor Exonerado ($)');
+        
+        // Ordenar y tomar Top 5
+        let sortedProv = Object.entries(agProveedor).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        sortedProv.forEach(p => dataBar.addRow([p[0], p[1]]));
+
+        new google.visualization.BarChart(document.getElementById('chart_bar')).draw(dataBar, {
+            colors: ['#ffc107'], // Amarillo
+            chartArea: {width:'70%',height:'80%'},
+            vAxis: {textStyle: {fontSize: 10}},
+            hAxis: {format: 'currency'}
+        });
+
+        // G5: Gráfico de Área (Area Chart) -> Acumulado
+        let dataArea = new google.visualization.DataTable();
+        dataArea.addColumn('date', 'Fecha');
+        dataArea.addColumn('number', 'V. Exonerado');
+        dataArea.addColumn('number', 'I. Evitado');
+
+        sortedDates.forEach(d => {
+            let dateObj = new Date(d);
+            if(!isNaN(dateObj)) dataArea.addRow([dateObj, agTiempo[d].ex, agTiempo[d].ev]);
+        });
+
+        new google.visualization.AreaChart(document.getElementById('chart_area')).draw(dataArea, {
+            colors: ['#0d6efd', '#198754'], // Azul y Verde
+            isStacked: true,
+            chartArea: {width:'80%',height:'70%'},
+            hAxis: {format: 'dd/MM/yy'}
+        });
+
+        // G6: Tabla (Table Chart)
+        let dataTable = new google.visualization.DataTable();
+        dataTable.addColumn('string', 'OC');
+        dataTable.addColumn('string', 'Proveedor');
+        dataTable.addColumn('string', 'Material/Servicio');
+        dataTable.addColumn('string', 'Usuario Solicitante');
+        dataTable.addColumn('number', 'Valor Exonerado');
+        dataTable.addColumn('number', 'Dias Vencer');
+
+        // Mostrar solo los primeros 15 registros como muestra
+        datos.slice(0, 15).forEach(row => {
+            dataTable.addRow([
+                String(row['OC'] || ''),
+                String(row['Proveedor'] || '').substring(0, 15), // Truncar
+                String(row['Material o Servicio'] || '').substring(0, 20),
+                String(row['Usuario Solicitante'] || ''),
+                parseFloat(row['Valor Exonerado']) || 0,
+                parseFloat(row['Dias por vencer']) || 0
+            ]);
+        });
+
+        // Formateador de moneda
+        let formatterCurrency = new google.visualization.NumberFormat({prefix: '$', fractionDigits: 2});
+        formatterCurrency.format(dataTable, 4);
+
+        new google.visualization.Table(document.getElementById('chart_table')).draw(dataTable, {
+            showRowNumber: true, width: '100%', height: '100%', sort: 'enable', page: 'enable', pageSize: 10
+        });
+    }
+</script>
+
+</body>
+</html>
