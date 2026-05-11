@@ -32,7 +32,7 @@
         <div class="d-flex align-items-center gap-2">
             <input type="file" id="inputExcel" class="form-control" accept=".xlsx, .xls">
             <button class="btn btn-outline-secondary" onclick="location.reload()">Reset</button>
-            <button class="btn btn-outline-secondary" type="button" onclick="doPost()">Post 2</button>
+            <button class="btn btn-outline-secondary" type="button" onclick="doPost()">Post 3</button>
         </div>
     </div>
 
@@ -175,7 +175,7 @@
 
     function doPost() {
 
-        fetch("https://script.google.com/macros/s/1Ff1-QDfgmuMyXPtcVN7EjwOuA7KkKjnPByGhWIJfcfA/exec", {
+        fetch("https://script.google.com/macros/s/1f48_rFiksJ1ZDD3mAhNXx0y6iVzCFxKnPahEL0zTfqX01OIXt_Yxob0-/exec", {
 
                 method: "POST",
 
@@ -209,33 +209,6 @@
         */
     }
     
-    function doGet() {
-          var sheet = SpreadsheetApp
-              .openById("1Ff1-QDfgmuMyXPtcVN7EjwOuA7KkKjnPByGhWIJfcfA")
-              .getSheetByName("Hoja1");
-        
-          var data = sheet.getDataRange().getValues();
-        
-          var headers = data[0];
-        
-          var result = [];
-        
-          for (var i = 1; i < data.length; i++) {
-        
-            var obj = {};
-        
-            for (var j = 0; j < headers.length; j++) {
-        
-              obj[headers[j]] = data[i][j];
-            }
-        
-            result.push(obj);
-          }
-        
-          return ContentService
-              .createTextOutput(JSON.stringify(result))
-              .setMimeType(ContentService.MimeType.JSON);
-    }
 
     
     function procesarYDraw(datos) {
