@@ -32,6 +32,7 @@
         <div class="d-flex align-items-center gap-2">
             <input type="file" id="inputExcel" class="form-control" accept=".xlsx, .xls">
             <button class="btn btn-outline-secondary" onclick="location.reload()">Reset</button>
+            <button class="btn btn-outline-secondary" type="button" onclick="doPost()">Post</button>
         </div>
     </div>
 
@@ -171,6 +172,51 @@
             console.log(data);
         });
     }
+
+    function doPost() {
+      var sheet = SpreadsheetApp
+          .openById("1Ff1-QDfgmuMyXPtcVN7EjwOuA7KkKjnPByGhWIJfcfA")
+          .getSheetByName("Hoja1");
+    
+      sheet.appendRow([
+          "joseord",
+          "Jose",
+          "Ordoñez"
+      ]);
+    
+      return ContentService
+          .createTextOutput("OK");
+    }
+    
+    function doGet() {
+          var sheet = SpreadsheetApp
+              .openById("1Ff1-QDfgmuMyXPtcVN7EjwOuA7KkKjnPByGhWIJfcfA")
+              .getSheetByName("Hoja1");
+        
+          var data = sheet.getDataRange().getValues();
+        
+          var headers = data[0];
+        
+          var result = [];
+        
+          for (var i = 1; i < data.length; i++) {
+        
+            var obj = {};
+        
+            for (var j = 0; j < headers.length; j++) {
+        
+              obj[headers[j]] = data[i][j];
+            }
+        
+            result.push(obj);
+          }
+        
+          return ContentService
+              .createTextOutput(JSON.stringify(result))
+              .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    
     function procesarYDraw(datos) {
         // --- 1. PROCESAMIENTO DE DATOS ---
         let tExonerado = 0;
